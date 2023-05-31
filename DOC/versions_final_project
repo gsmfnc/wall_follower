@@ -1,0 +1,426 @@
+v2.
+
+    Descrizione:
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        - final_project_v2.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    Chiama ring().      (vedi environment.pde)
+    Chiama obstacles(). (vedi environment.pde)
+
+    Chiama la positionChecking(). (vedi valuesChecking.pde)
+
+    Chiama next_position(). (vedi path.pde)
+    Chiama controller(). (vedi controller.pde)
+    Chiama pid(). (vedi controller.pde)
+
+    Se execute_lift_object è pari ad 1, allora è stato trovato l'oggetto da
+    sollevare. Dunque, si esegue la lift_object(). (vedi lift_object.pde)
+
+    Se throwing è pari ad 1, allora l'oggetto è stato sollevato ed è pronto per
+    essere lanciato. Dunque, si esegue lifted_box().
+    Questa viene eseguita anche se non sono passati 40 frame da time_from_throw.
+    (vedi lift_object.pde)
+
+    Disegna il "ghost" robot caratterizzato dalle coordinate desiderate da
+    raggiungere.
+
+    Chiama uniciclo() e antropomorfo().
+    --->    Queste due funzioni disegnano rispettavamente:
+
+                -   l'uniciclo come una box di dimensione radius;
+
+                    la traslazione lungo x è dovuta al fatto che box a partire
+                    da un angolo;
+
+                    la traslazione lungo z è dovuta al fatto che altrimenti metà
+                    box finiva "sotto";
+
+                    chiama la distanceSensors(); (vedi distance.pde)
+
+                -   l'antropomorfo usando le funzioni che disegnano la tabella
+                    di D-H + una pinza
+
+    Chiama la textWriting(). (vedi text.pde)
+    Chiama draw_explored_map(). (vedi exploring.pde)
+    Chiama draw_oscilloscope(). (vedi oscilloscope.pde)
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            valuesChecking.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Si assicura che l'uniciclo non esca fuori dal "ring".
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            distance.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    La funzione distanceSensors() viene chiamata all'interno della funzione
+    uniciclo() e serve semplicemente a disegnare delle rette di colore rosso e
+    lunghe maxDistance che descrivono i sensori distanza. Il sensore denominato
+    come "FRONT" è disegnato con uno spessore superiore.
+
+    La funzione measureDistance() calcola la distanza misurata dai sensori.
+    L'idea è la seguente:
+    si memorizza la posizione corrente dell'uniciclo in funzione della griglia,
+    ossia currentColumn e correntRow. Si consideri soltanto il sensore frontale.
+    Per semplicità si assume che la misura comincia dal centro del robot e non
+    dai bordi. La massima distanza che possono misurare è contenuta in
+    maxDistance e corrisponde a due quadrati di distanza rispetto a quello
+    occupato.
+    Se il robot si trova nel quadrato (i, j) ed è "orientato verso il basso" si
+    considerano solamente i quadrati (i+1, j) e (i+2, j).
+    (vedi il disegno sotto)
+
+    Il caso di theta = 0 è il seguente:
+
+                            j-esima                 colonna
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |     | |     | 
+            |     | |     | |     | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |     | |     | 
+            |     | |     | |     | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | | XXX | |     | |     |
+            |     | |     | | XXX | |     | |     | i-esima riga
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | | ||| | |     | |     | i+1-esima riga
+            |     | |     | | ||| | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | | ||| | |     | |     | i+2-esima riga
+            |     | |     | | ||| | |     | |     | 
+            ------- ------- ------- ------- -------
+    dove 
+        XXX
+        XXX: rappresenta la posizione del robot
+    e
+        |||
+        ||| : rappresenta il sensore di distanza
+    e da cui si vede che si devono analizzare soltanto (i+1,j) e (i+2,j).
+
+    Tuttavia, il caso di theta = PI/4 è il seguente:
+
+                            j-esima j+1      j+2    colonna
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |     | |     | 
+            |     | |     | |     | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |     | |     | 
+            |     | |     | |     | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | | XXX | |     | |     | i-esima riga
+            |     | |     | | XXX | |     | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |\\\  | |     | i+1-esima riga
+            |     | |     | |     | | \\\ | |     | 
+            ------- ------- ------- ------- -------
+            ------- ------- ------- ------- -------
+            |     | |     | |     | |     | |\\\  | i+2-esima riga
+            |     | |     | |     | |     | |  \\\| 
+            ------- ------- ------- ------- -------
+    da cui si vede che adesso bisogna analizzare (i+1, j+1) e (i+2, j+2) !!!
+
+    A seconda dell'orientamento si devono analizzare quadrati diversi, ossia
+    aumentare gli indici i, j in maniera opportuna. Il metodo utilizzato è
+    quello di calcolare gli indici in relazione al cos e al sin dell'angolo:
+        se cos(theta) > 0 allora i += 1
+        se cos(theta) = 0 allora i = i
+        se cos(theta) < 0 allora i -= 1
+
+        se sin(theta) > 0 allora j += 1
+        se sin(theta) = 0 allora j = j
+        se sin(theta) < 0 allora j -= 1
+
+    Adesso, siccome gli altri sensori sono tutti a distanza PI/4 tra loro, è
+    possibile riutilizzare lo stesso ragionamento, ma decrementando/aumentando
+    l'angolo iniziale opportunamente.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            environment.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Sono qui definite delle matrici che rappresentano la mappa, necessarie alla
+    funzione obstacles().
+    Gli array 'int[] *_map_object' sono necessari a resettare la posizione
+    dell'oggetto poiché una volta sollevato le matrici della mappa vengono
+    modificate permanentemente. Dunque, se si vuole ricominciare, senza
+    riassegnare la posizione sulla matrice dell'oggetto, questo non
+    riapparirebbe.
+
+    La funzione ring() disegna lo spazio entro cui il robot può muoversi e una
+    griglia che mostra i quadrati entro cui il robot si sposta di volta in volta
+
+    La funzione obstacles() disegna gli ostacoli:
+    L'ambiente è stato suddiviso in "quadrati" di dimensione fissata. 
+    I movimenti laterali, non possibili direttamente per la natura fisica
+    dell'uniciclo, è stata "superata" suddividendo il movimento del robot in
+    tre fasi (descritte in controller.pde).
+
+    L'ambiente è stato fissato di dimensione 700x450; il lato dei quadrati
+    è stato fissato a 50 ---> l'ambiente è stato suddiviso in 700/50=14
+    quadrati in orizzontale e 450/50=9 quadrati in verticale. La
+    rappresentazione consiste in una matrice 14x9 i cui elementi sono 1 se
+    vi è un ostacolo, 0 altrimenti. L'elemento di valore pari a 2 rappresenta un
+    oggetto che il robot dovrà afferrare.
+    L'ostacolo rappresentato dall'elemento (i,j) viene rappresentato nel
+    quadrato (i,j) della "griglia".
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            controller.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Il codice viene eseguito solamente se execute_lift_object è pari a 0, ossia
+    non si è in fase di sollevamento dell'oggetto, e se ending è pari a 0, ossia
+    se l'oggetto sollevato è stato lanciato.
+    La funzione controller() suddivide il movimento del robot in tre fasi:
+        -   rotazione verso l'angolo iniziale "migliore"
+        -   movimento con controllore di velocità (codice prof. Martinelli)
+            verso le coordinate desiderate, finché non si è sufficientemente
+            vicini oppure del controllore bang-bang (selezionabile mediante la
+            variabile control_mode che viene modificata in gui.pde)
+        -   rotazione verso l'angolo finale "migliore": questo viene determinato
+            dalla compute_final_orientation() (vedi path.pde)
+    Questa suddivisione permette:
+        1.  se l'uniciclo vuole muoversi alla sua sinistra/destra può farlo
+            ruotando prima su sé stesso (prima fase) e poi andando dritto
+            (seconda fase)
+        2.  avere l'uniciclo sempre in un angolo "comodo" grazie alla terza
+            fase. In particolare, lo si ha sempre a 0, 90, 180 o 270 gradi.
+
+    La variabile 'manual':
+        -   se pari a 0 implica la ripetizione automatica dei tre passi
+        -   se pari a 1 implica l'esecuzione dei tre passi solo dopo la
+            pressione di un pulsante
+
+    La funzione pid() controlla i giunti del robot con un controllore
+    proporzionale.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            keys.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Definisce i pulsanti per interagire con la simulazione:
+
+        -   pulsanti per determinare il prossimo quadrato da raggiungere;
+            non permette di aggiornare la variabile di spostamento del ghost
+            robot e degli indici se gli indici superano le dimensioni della
+            matrice.
+
+        -   pulsanti per muovere i giunti dell'antropomorfo
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            exploring.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Si inizializza una matrice explored_map contente tutti -1: tale matrice ha
+    la stessa dimensione della mappa di movimento del robot.
+
+    La funzione explore_neighbourhood(), con un metodo analogo a quello usato in
+    measureDistance(), modifica la explored_map se rileva degli ostacoli o il
+    vuoto: non è sufficiente semplicemente leggere il valore del sensore, poiché
+    è necessario determinare verso dove i sensori sono diretti ad ogni nuovo
+    orientamento del robot.
+
+    La funzione draw_explored_map() disegna su un oggetto PGraphics la
+    explored_map, colorando di rosso i quadrati contenenti gli ostacoli e di
+    verde i spazi vuoti.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            path.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    La funzione next_position():
+    Analizza tutte le variabili di spostamento e:
+        -   calcola le coordinate del nuovo posizionamento
+        -   riazzera la variabile di spostamento
+        -   aggiorna gli indici currentRow e currentColumn
+        -   autorizza l'inizio della prima fase del controller() settando
+            stop_first_rotation a zero
+        -   determina l'orientamento iniziale analizzando i valori letti dai
+            sensori e utilizzando find_closest_orientation per compiere la
+            minore rotazione per raggiungerla
+        -   nel caso dei spostamenti diagonali, ci si affida a
+            compute_indexes_to_analyze() per determinare quali sono i sensori
+            corretti da analizzare
+
+    La compute_indexes_to_analyze() determina quali sensori bisogna leggere per
+    determinare l'orientamento iniziale.
+    L'idea si basa sul seguente ragionamento: consideriamo il movimento
+    backward-left.
+    Se l'orientamento iniziale è 0:
+        ---------------------------
+        |       ||???????||       |
+        | HERE  ||???????||       |
+        |       ||???????||       |
+        ---------------------------
+        ---------------------------
+        |???????||       ||       |
+        |???????||   X---||-------|
+        |???????||       ||       |
+        ---------------------------
+        ---------------------------
+        |       ||       ||       |
+        |       ||       ||       |
+        |       ||       ||       |
+        ---------------------------
+    Per raggiungere HERE, devo analizzare il sensore alla mia sinistra e quello
+    alle mie spalle ---> la funzione restituisce gli indici relativi ai sensori
+    LEFT e BACK. Analogamente si procede per tutti gli altri casi di
+    orientamento iniziale e successivamente per gli altri vari movimenti.
+
+    La compute_final_orientation() calcola l'orientamento finale determinando
+    quale angolo tra 0, 90, 180 e 270 è più vicino all'orientamento ottenuto
+    dalla legge di controllo nella seconda fase in controller(). In pratica,
+    converte l'angolo theta in un angolo positivo angle e determina tramite il
+    seguente ciclo l'angolo positivo più vicino:
+        k = 0;
+        while (abs(angle - k * PI/2) > abs(angle - (k+1) * PI/2))
+            ++k;
+        best = k * PI/2;
+    dove
+        al primo ciclo si vede se angle è più vicino a 0 o a PI/2
+        al secondo ciclo si vede se angle è più vicino a PI/2 o a PI
+        ...
+    e ci si ferma quando ci si accorge che aumentando la k ci si sta
+    allontanando da angle. A questo punto, l'angolo POSITIVO più vicino è
+    k*PI/2. Adesso, se l'angolo theta di partenza (prima di convertirlo in
+    positivo) era negativo, allora con un ragionamento simile:
+        while (abs(best - theta) > abs(best - 2*PI - theta))
+            best -= 2*PI;
+    dove
+        al primo ciclo si vede se theta è più vicino a best o a best - 2*PI
+        al secondo ciclo si vede se theta è più vicino a best-2*PI o a best-4*PI
+        ...
+    ossia sottraiamo 2*PI per ricavare l'angolo negativo più vicino al theta
+    reale, a partire dal best ricavato per angle.
+
+    La convert_to_positive() rende gli orientamenti negativi uguali ai
+    corrispondenti positivi.
+
+    La find_closest_orientation() calcola, dato un orientamento X, se è più
+    distante dall'orientamento corrente l'orientamento X per multipli di 2*PI
+    (sempre positivo) oppure il corrispondente negativo per multi di 2*PI.
+    (ragionamento simile a quello di compute_final_orientation())
+
+    La funzione exploring() è l'implementazione effettiva dell'algoritmo per il
+    calcolo del percorso.
+
+    La funzione compute_correct_direction() prende come parametro una direzione
+    e determina qual è la variabile di spostamento corretta. In sostanza, poiché
+    i movimenti sono relativi al robot e questo può ruotare, dire che il robot
+    deve spostarsi "in avanti" implica una direzione diversa a seconda di come
+    il robot è ruotato.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            text.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Scrive sullo schermo i valori letti dai 8 sensori.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            lift_obstacle.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    La funzione listObstacle() si suddivide in tre fasi:
+
+        -   preparazione al sollevamento : questa fase comincia quando la
+        variabile prepareLift viene settata a 1, ossia quando viene premuta la
+        lettera 'l'. In questa fase si analizza il "vicinato" della griglia,
+        utilizzando la funzione checkNeighbourObstacles(): se fornisce risultato
+        positivo, allora si muove l'antropomorfo in modo che l'end effector sia
+        sotto l'ostacolo, si resetta la variabile prepareLift e si setta la
+        variabile lifting. Viene settata execute_lift_object a 1, in modo che
+        in final_project_v2.pde venga eseguita la lift_object().
+
+        -   sollevamento: questa fase comincia quando la variabile lifting viene
+        settata a 1 e sono passati 40 frame dal suo settaggio.
+        Setta a 0 la componente della matrice relativa all'ostacolo rimosso,
+        così che non venga più disegnato e chiama la funzione liftedBox() che
+        disegna l'ostacolo sopra l'end-effector. In questa fase viene mosso
+        l'antropomorfo in una posizione che simula il sollevamento
+        dell'ostacolo. Infine, viene resettata la variabile lifting e settata la
+        variabile throwing, che implica la continua esecuzione di lifted_box(),
+        al fine di disegnare l'oggetto in prossimità dell'end effector.
+        Viene resettata la variabile execute_lift_object poiché questa bloccava
+        l'esecuzione del controller() e dunque del movimento del robot.
+        (infatti adesso può ricominciare a muoversi siccome l'oggetto è stato
+        sollevato e quindi può occupare il quadrato in cui questo si trovata)
+
+        -   rilascio: questa fase comincia quando la variabile throwing è
+        settata a 1. Viene disegnato l'ostacolo sopra l'end-effector del robot
+        attraverso la funzione liftedBox().
+        Si analizza la posizione corrente del robot: se questa è al bordo del
+        ring, allora l'antropomorfo viene mosso in modo da simulare il "lancio"
+        dell'ostacolo fuori dal ring. Nel caso questo avvenga, allora la
+        variabile throwing viene resettata e viene settata la ending, ossia
+        l'intero sistema di ferma.
+        Viene settato il tempo time_from_throw per far smettere di eseguire la
+        lifted_box() dopo un certo tempo, affinché l'oggetto scompaia quando il
+        robot ha messo il braccio sufficientemente al di fuori del ring.
+
+    La funzione checkNeighbourObstacles() viene utilizzata durante la prima fase
+    e analizza i quadrati vicini alla posizione corrente. In particolare, per
+    semplicità, analizza soltanto le posizioni seguenti:
+
+                        ------------------
+                        |                |
+                        |       2        |
+                        |                |
+                        ------------------
+     ------------------ ------------------ ------------------
+     |                | |                | |                |
+     |       1        | |current position| |       4        |
+     |                | |                | |                |
+     ------------------ ------------------ ------------------
+                        ------------------
+                        |                |
+                        |       3        |
+                        |                |
+                        ------------------
+
+    e determina opportunamente di quanto deve ruotare il giunto rotoidale pivot
+    alla base del antropomorfo affinché il braccio sia direzionato verso l'area
+    contenente l'ostacolo. Poiché tutto l'antropomorfo si muove insieme
+    all'uniciclo, le rotazioni che questo fa influiscono su quanto deve ruotare
+    l'antropomorfo per direzionarsi correttamente: la funzione
+    compute_correct_obstacle_direction() determina il corretto angolo di
+    rotazione tenendo conto della rotazione dell'uniciclo.
+
+    La funzione liftedBox(), usata durante la terza fase, disegna l'ostacolo
+    ripercorrendo tutte le trasformazioni della procedura D-H dell'antropomorfo
+    e del disegno della pinza.
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            gui.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    Si crea una drop list per poter selezionare i labirinti. Tuttavia, è
+    necessario riazzerare tutte le variabili sulle posizioni, ecc. Questo viene
+    fatto mediante le funzioni 'init_xxx()' definite all'interno del relativo
+    file 'xxx.pde' in cui si "resettano" tutte le variabili contenute in quel
+    file.
+
+    Si crea una checkbox che se selezionata modifica il valore della variabile
+    'manual', settandolo ad 1. Quando manual == 1, allora la pressione del
+    pulsante 'Next' invoca la funzione exploring() ed eventualmente la
+    lift_object() (quando ve ne è bisogno per lanciare l'oggetto sollevato)
+    In sostanza, il robot si muove soltanto solo sotto l'azione dell'utente.
+
+    Si creano diverse label per mostrare i valori letti dai sensori di distanza.
+
+    Si crea una droplist per poter scegliere il tipo di controllore
+    (proporzionale o bang-bang).
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            oscilloscope.pde
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    La funzione init_oscilloscope(int) prende come parametro il numero di
+    variabili da plottare e, dunque, crea una griglia con un numero opportuno di
+    linee.
+
+    La funzione oscilloscope_plot(float, float, float, float, int, float) prende
+    come primi quattro parametri i valori da plottare (i primi due sono
+    interpretati come le variabili di riferimento, il terzo ed il quarto come le
+    variabili di giunto/posizione attuali, il quinto è un intero che indica su
+    quale linea dell'oscilloscopio si vogliono plottare tali variabili e
+    l'ultimo è un eventuale termine di scala per ridurre/amplificare l'ampiezza
+    delle variabili.
